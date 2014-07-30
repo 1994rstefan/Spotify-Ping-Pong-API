@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Spotify Ping Pong</title>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script>
+        jQuery(function ($) {
+            var spotifyPlayer = $('embed')[0];
+            console.log(spotifyPlayer);
+            var getPing = function () {
+                $.ajax('//localhost:8080/ping', {type: 'GET'})
+                        .done(function (res) {
+                            if (res == '') {
+                                setTimeout(getPing, 500);
+                                return;
+                            }
+
+                            var ping = decodeURIComponent(res)
+                            console.log(ping);
+
+                            var spotifyPong = spotifyPlayer.sp_run(ping);
+                            $.ajax('//localhost:8080/pong', {type: 'POST', data: {ping: res, pong: spotifyPong}})
+                                    .done(function () {
+                                        setTimeout(getPing, 500);
+                                    });
+                        })
+            }
+            setTimeout(getPing, 2000);
+        });
+    </script>
+</head>
+<body>
+<embed width="100%" height="100%" name="plugin" src="//localhost:8080/player.swf" type="application/x-shockwave-flash">
+</body>
+</html>
