@@ -6,30 +6,33 @@
     <script>
         jQuery(function ($) {
             var spotifyPlayer = $('embed')[0];
-            console.log(spotifyPlayer);
+
             var getPing = function () {
-                $.ajax('//localhost:8080/ping', {type: 'GET'})
-                        .done(function (res) {
-                            if (res == '') {
-                                setTimeout(getPing, 500);
+                $.ajax('//localhost:8081/ping', {type: 'GET'})
+                        .always(function (ping, status) {
+                            if (status !== 'success') {
+                                setTimeout(getPing, 100);
                                 return;
                             }
 
-                            var ping = decodeURIComponent(res)
-                            console.log(ping);
+                            var realPing = ping.replace(/-/g, ' ');
+                            var realPong = spotifyPlayer.sp_run(realPing);
 
-                            var spotifyPong = spotifyPlayer.sp_run(ping);
-                            $.ajax('//localhost:8080/pong', {type: 'POST', data: {ping: res, pong: spotifyPong}})
-                                    .done(function () {
-                                        setTimeout(getPing, 500);
+                            var pong = realPong.replace(/ /g, '-');
+                            console.log('ping: ' + ping + ' pong: ' + pong);
+
+                            $.ajax('//localhost:8081/pong', {type: 'POST', data: {ping: ping, pong: pong}})
+                                    .always(function () {
+                                        setTimeout(getPing, 100);
                                     });
-                        })
-            }
-            setTimeout(getPing, 2000);
+                        });
+            };
+            setTimeout(getPing, 1000);
         });
     </script>
 </head>
 <body>
-<embed width="100%" height="100%" name="plugin" src="//localhost:8080/player.swf" type="application/x-shockwave-flash">
+<embed width="100%" height="100%" name="plugin" src="//localhost:8081/data/player.swf"
+       type="application/x-shockwave-flash">
 </body>
 </html>

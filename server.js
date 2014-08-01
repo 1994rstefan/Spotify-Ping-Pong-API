@@ -1,44 +1,83 @@
 var http = require('http');
-var fs   = require('fs');
-var qs   = require('querystring');
+var fs = require('fs');
+var qs = require('querystring');
 
-var WebInterface = http.createServer();
+var browserCon = null;
 
 var pings = Object();
+var pingSchema = /^\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+$/;
 
-WebInterface.on('request', function (req, res) {
-    switch(req.url){
+var handlePingRequest = function () {
+    if (!browserCon) {
+        return;
+    }
+
+    var ping = '';
+    for (ping in pings) break;
+
+    if (ping == '') {
+        return;
+    }
+
+    browserCon.end(ping);
+};
+
+var handlePongResponse = function (ping, pong) {
+    if (!pings[ping]) {
+        return;
+    }
+
+    pings[ping].end('{"status":"ok","ping":"' + ping + '","pong":"' + pong + '"}');
+    delete pings[ping];
+};
+
+var api = http.createServer();
+api.on('request', function (req, res) {
+    var ping = req.url.substr(1);
+
+    if (!pingSchema.test(ping)) {
+        res.end('{"status":"error","error":"invalid ping"}');
+        return;
+    }
+
+    pings[ping] = res;
+
+    handlePingRequest();
+});
+api.listen(8080);
+
+
+var browser = http.createServer();
+browser.on('request', function (req, res) {
+    browserCon = res;
+
+    switch (req.url) {
+        case '/data/browser.html':
+            fs.createReadStream('./browser.html').pipe(res);
+            break;
+        case '/data/player.swf':
+            fs.createReadStream('./player.swf').pipe(res);
+            break;
         case '/favicon.ico':
             res.end();
             break;
-        case '/browser.html':
-            fs.createReadStream('./browser.html').pipe(res);
-            break;
-        case '/player.swf':
-            fs.createReadStream('./player.swf').pipe(res);
-            break;
         case '/ping':
-            var ping = '';
-            for (ping in pings) break;
-            res.end(ping);
+            handlePingRequest();
             break;
         case '/pong':
             var reqBody = '';
-            req.on('data', function(data){
+            req.on('data', function (data) {
                 reqBody += data;
             });
-            req.on('end', function(){
+
+            req.on('end', function () {
                 var reqPostData = qs.parse(reqBody);
-                pings[reqPostData.ping].end(reqPostData.pong);
-                delete pings[reqPostData.ping];
+
+                handlePongResponse(reqPostData.ping, reqPostData.pong);
+
                 res.end();
-            })
+            });
             break;
-        default:
-            var ping = req.url.substr(1);
-            pings[ping] = res;
     }
 });
-
-
-WebInterface.listen(8080);
+browser.listen(8081);
