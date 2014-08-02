@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Spotify Ping Pong</title>
+    <script>
+        window.onload = function () {
+            var spotifyPlayer = document.getElementById('spotifyPlayer');
+
+            var con = new WebSocket('ws://127.0.0.1:8081');
+
+            con.onmessage = function (e) {
+                var ping = e.data;
+
+                console.log('WebSocket ping request - ' + ping);
+
+                try {
+                    var pong = spotifyPlayer.sp_run(ping);
+                }
+                catch (e) {
+                    con.send(ping + ':');
+                    console.log('Pong error - restarting');
+                    window.location.reload();
+                }
+
+                console.log('WebSocket pong response - ' + ping + ':' + pong);
+                con.send(ping + ':' + pong);
+            };
+
+            con.onerror = function () {
+                console.log('WebSocket connection error - restarting');
+                window.location.reload();
+            };
+
+            con.onclose = function () {
+                console.log('WebSocket connection closed - restarting');
+                window.location.reload();
+            };
+
+            con.onopen = function () {
+                console.log('WebSocket connection established');
+            };
+        };
+    </script>
+</head>
+<body>
+<embed id="spotifyPlayer" src="//localhost:8080/player.swf" type="application/x-shockwave-flash"></embed>
+</body>
+</html>

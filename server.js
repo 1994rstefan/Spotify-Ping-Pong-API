@@ -1,83 +1,47 @@
-var http = require('http');
 var fs = require('fs');
-var qs = require('querystring');
+var http = require('http');
+var pongWorker = require('./pongWorker.js');
 
-var browserCon = null;
-
-var pings = Object();
-var pingSchema = /^\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+-\d+$/;
-
-var handlePingRequest = function () {
-    if (!browserCon) {
-        return;
-    }
-
-    var ping = '';
-    for (ping in pings) break;
-
-    if (ping == '') {
-        return;
-    }
-
-    browserCon.end(ping);
-};
-
-var handlePongResponse = function (ping, pong) {
-    if (!pings[ping]) {
-        return;
-    }
-
-    pings[ping].end('{"status":"ok","ping":"' + ping + '","pong":"' + pong + '"}');
-    delete pings[ping];
-};
+var pingSchema = /^\d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+$/;
 
 var api = http.createServer();
 api.on('request', function (req, res) {
-    var ping = req.url.substr(1);
+    var encodedPing = req.url.substr(1);
+    var ping = encodedPing.replace(/-/g, ' ');
 
     if (!pingSchema.test(ping)) {
-        res.end('{"status":"error","error":"invalid ping"}');
+        res.end('{"status":201}');
         return;
     }
 
-    pings[ping] = res;
 
-    handlePingRequest();
+    pongWorker.process(ping, function (err, pong) {
+        if (err) {
+            res.end('{"status":' + err + '}');
+            return;
+        }
+
+        var encodedPong = pong.replace(/ /g, '-');
+
+        res.end('{"status":100,"ping":"' + encodedPing + '","pong":"' + encodedPong + '"}');
+    });
 });
-api.listen(8080);
+api.listen(1337);
 
 
 var browser = http.createServer();
 browser.on('request', function (req, res) {
-    browserCon = res;
-
     switch (req.url) {
-        case '/data/browser.html':
-            fs.createReadStream('./browser.html').pipe(res);
+        case '/worker.html':
+            fs.createReadStream('./worker.html').pipe(res);
             break;
-        case '/data/player.swf':
+        case '/player.swf':
             fs.createReadStream('./player.swf').pipe(res);
             break;
-        case '/favicon.ico':
-            res.end();
-            break;
-        case '/ping':
-            handlePingRequest();
-            break;
-        case '/pong':
-            var reqBody = '';
-            req.on('data', function (data) {
-                reqBody += data;
-            });
-
-            req.on('end', function () {
-                var reqPostData = qs.parse(reqBody);
-
-                handlePongResponse(reqPostData.ping, reqPostData.pong);
-
-                res.end();
-            });
+        default:
+            res.writeHead(404);
+            res.end('404 - ' + http.STATUS_CODES[404]);
             break;
     }
 });
-browser.listen(8081);
+browser.listen(8080);
