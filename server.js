@@ -26,7 +26,7 @@ api.on('request', function (req, res) {
         res.end('{"status":100,"ping":"' + encodedPing + '","pong":"' + encodedPong + '"}');
     });
 });
-api.listen(1337);
+api.listen(80);
 
 
 var browser = http.createServer();
@@ -44,4 +44,4 @@ browser.on('request', function (req, res) {
             break;
     }
 });
-browser.listen(8080);
+browser.listen(8080, '127.0.0.1');

@@ -50,7 +50,6 @@ module.exports.process = function (ping, cb) {
         return;
     }
 
-    console.log(workers.length);
     if (workers.length === 0) {
         log('203 - no available workers');
         cb(203, null);
